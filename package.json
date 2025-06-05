@@ -1,0 +1,32 @@
+{
+  "name": "setup-athanor",
+  "version": "0.1.0",
+  "description": "A CLI tool to bootstrap a local, source-based instance of Athanor.",
+  "author": "Your Name",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "setup-athanor": "./cli.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "execa": "^8.0.1"
+  },
+  "keywords": [
+    "athanor",
+    "cli",
+    "bootstrapper",
+    "scaffolder",
+    "installer",
+    "development"
+  ],
+  "files": [
+    "cli.js"
+  ],
+  "scripts": {
+    "start": "node ./cli.js"
+  }
+}
