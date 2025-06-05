@@ -10,7 +10,7 @@ import fs from 'fs/promises';
 
 const ATHANOR_REPO_URL = 'https://github.com/lacerbi/athanor.git';
 
-async function checkPrerequisites() {
+export async function checkPrerequisites() {
   const errors = [];
   
   // Check for Git
@@ -30,7 +30,7 @@ async function checkPrerequisites() {
   return errors;
 }
 
-async function directoryExists(path) {
+export async function directoryExists(path) {
   try {
     const stats = await fs.stat(path);
     return stats.isDirectory();
@@ -39,15 +39,15 @@ async function directoryExists(path) {
   }
 }
 
-async function main() {
+export async function main() {
   console.log(chalk.blue.bold('\n🚀 Athanor Setup Bootstrapper\n'));
 
-  // Parse command line arguments
-  const targetDirectoryArg = process.argv[2];
-  const targetDirectoryName = targetDirectoryArg || 'athanor';
-  const fullTargetPath = path.resolve(targetDirectoryName);
-
   try {
+    // Parse command line arguments
+    const targetDirectoryArg = process.argv[2];
+    const targetDirectoryName = targetDirectoryArg || 'athanor';
+    const fullTargetPath = path.resolve(targetDirectoryName);
+
     // Check prerequisites
     console.log(chalk.cyan('Checking prerequisites...'));
     const prerequisiteErrors = await checkPrerequisites();
@@ -153,9 +153,11 @@ async function main() {
   }
 }
 
-// Run the main function
-main().catch(error => {
-  console.error(chalk.red.bold('\n❌ Fatal error:'));
-  console.error(chalk.red(error));
-  process.exit(1);
-});
+// Run the main function only when executed directly (not when imported for testing)
+if (process.argv[1] && process.argv[1].endsWith('cli.js')) {
+  main().catch(error => {
+    console.error(chalk.red.bold('\n❌ Fatal error:'));
+    console.error(chalk.red(error));
+    process.exit(1);
+  });
+}
