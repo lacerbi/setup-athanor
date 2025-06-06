@@ -2,9 +2,11 @@
 
 > _where modern alchemists cook_
 
-[![NPM Version](https://img.shields.io/npm/v/setup-athanor)](https://www.npmjs.com/package/setup-athanor)
+[![Version](https://img.shields.io/github/package-json/v/lacerbi/setup-athanor?label=Version)](https://github.com/lacerbi/athanor)
 [![Node.js CI](https://github.com/lacerbi/setup-athanor/actions/workflows/ci.yml/badge.svg)](https://github.com/lacerbi/setup-athanor/actions/workflows/ci.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Sponsor me on GitHub](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?logo=GitHub)](https://github.com/sponsors/lacerbi)
+[![Node.js >=18.x](https://img.shields.io/badge/Node.js-%3E%3D18.x-brightgreen)](https://nodejs.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 A simple one-command CLI tool to set up a local, source-based instance of Athanor.
 
