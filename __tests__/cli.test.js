@@ -48,6 +48,22 @@ jest.unstable_mockModule('unzipper', () => ({
   },
 }));
 
+// Mock readline module
+const mockQuestion = jest.fn();
+const mockClose = jest.fn();
+jest.unstable_mockModule('readline', () => ({
+  createInterface: jest.fn().mockReturnValue({
+    question: mockQuestion,
+    close: mockClose,
+  }),
+  default: {
+    createInterface: jest.fn().mockReturnValue({
+      question: mockQuestion,
+      close: mockClose,
+    }),
+  },
+}));
+
 // Import modules after mocks are set up
 const { execa } = await import('execa');
 const { checkPrerequisites, directoryExists, main } = await import('../cli.js');
@@ -70,6 +86,8 @@ describe('CLI Tests', () => {
     mockRm.mockClear();
     mockHttpsGet.mockClear();
     mockExtract.mockClear();
+    mockQuestion.mockClear();
+    mockClose.mockClear();
     
     // Mock process methods
     mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {});
@@ -83,6 +101,9 @@ describe('CLI Tests', () => {
     // Store original values
     originalArgv = process.argv;
     originalCwd = process.cwd();
+    
+    // Default mock for readline to simulate "yes" response
+    mockQuestion.mockImplementation((query, callback) => callback('y'));
   });
 
   afterEach(() => {
@@ -595,6 +616,187 @@ describe('CLI Tests', () => {
       
       // Verify unexpected error message
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('❌ An unexpected error occurred:'));
+    });
+  });
+
+  describe('user confirmation prompt', () => {
+    beforeEach(() => {
+      // Mock successful prerequisites and directory doesn't exist
+      execa.mockImplementation((cmd, args) => {
+        if (cmd === 'git' && args[0] === '--version') {
+          return Promise.resolve({ stdout: 'git version 2.30.0' });
+        }
+        if (cmd === 'npm' && args[0] === '--version') {
+          return Promise.resolve({ stdout: '8.0.0' });
+        }
+        if (cmd === 'git' && args[0] === 'clone') {
+          return Promise.resolve({ stdout: 'Cloning into...' });
+        }
+        if (cmd === 'npm' && args[0] === 'ci') {
+          return Promise.resolve({ stdout: 'Dependencies installed' });
+        }
+        return Promise.resolve({ stdout: '' });
+      });
+      
+      mockStat.mockRejectedValue(new Error('ENOENT: no such file or directory'));
+    });
+
+    it('should proceed with installation when user confirms with y', async () => {
+      process.argv = ['node', 'cli.js', 'test-dir'];
+      
+      // Mock user input "y"
+      mockQuestion.mockImplementation((query, callback) => callback('y'));
+      
+      await main();
+      
+      // Verify no exit was called (success scenario)
+      expect(mockExit).not.toHaveBeenCalled();
+      
+      // Verify readline was used
+      expect(mockQuestion).toHaveBeenCalledWith(expect.stringContaining('Do you want to proceed?'), expect.any(Function));
+      expect(mockClose).toHaveBeenCalled();
+      
+      // Verify git clone was called (installation proceeded)
+      expect(execa).toHaveBeenCalledWith('git', ['clone', 'https://github.com/lacerbi/athanor.git', 'test-dir']);
+    });
+
+    it('should proceed with installation when user confirms with Y (case insensitive)', async () => {
+      process.argv = ['node', 'cli.js', 'test-dir'];
+      
+      // Mock user input "Y"
+      mockQuestion.mockImplementation((query, callback) => callback('Y'));
+      
+      await main();
+      
+      // Verify no exit was called (success scenario)
+      expect(mockExit).not.toHaveBeenCalled();
+      
+      // Verify git clone was called (installation proceeded)
+      expect(execa).toHaveBeenCalledWith('git', ['clone', 'https://github.com/lacerbi/athanor.git', 'test-dir']);
+    });
+
+    it('should abort installation when user enters n', async () => {
+      process.argv = ['node', 'cli.js', 'test-dir'];
+      
+      // Complete mock reset for this test
+      jest.clearAllMocks();
+      execa.mockClear();
+      mockQuestion.mockClear();
+      mockClose.mockClear();
+      
+      // Set up fresh mock implementations for this test
+      execa.mockImplementation((cmd, args) => {
+        if (cmd === 'git' && args[0] === '--version') {
+          return Promise.resolve({ stdout: 'git version 2.30.0' });
+        }
+        if (cmd === 'npm' && args[0] === '--version') {
+          return Promise.resolve({ stdout: '8.0.0' });
+        }
+        // Git clone should not be called in this test
+        return Promise.resolve({ stdout: '' });
+      });
+      
+      // Mock user input "n"
+      mockQuestion.mockImplementation((query, callback) => callback('n'));
+      
+      await main();
+      
+      // Verify exit was called with code 0 (graceful abort)
+      expect(mockExit).toHaveBeenCalledWith(0);
+      
+      // Verify readline was used
+      expect(mockQuestion).toHaveBeenCalledWith(expect.stringContaining('Do you want to proceed?'), expect.any(Function));
+      expect(mockClose).toHaveBeenCalled();
+      
+      // Verify git clone was NOT called (installation aborted)
+      expect(execa).not.toHaveBeenCalledWith('git', ['clone', expect.any(String), expect.any(String)]);
+      
+      // Verify cancellation message was displayed
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Installation cancelled.'));
+    });
+
+    it('should abort installation when user enters invalid input', async () => {
+      process.argv = ['node', 'cli.js', 'test-dir'];
+      
+      // Complete mock reset for this test
+      jest.clearAllMocks();
+      execa.mockClear();
+      mockQuestion.mockClear();
+      mockClose.mockClear();
+      
+      // Set up fresh mock implementations for this test
+      execa.mockImplementation((cmd, args) => {
+        if (cmd === 'git' && args[0] === '--version') {
+          return Promise.resolve({ stdout: 'git version 2.30.0' });
+        }
+        if (cmd === 'npm' && args[0] === '--version') {
+          return Promise.resolve({ stdout: '8.0.0' });
+        }
+        // Git clone should not be called in this test
+        return Promise.resolve({ stdout: '' });
+      });
+      
+      // Mock user input with invalid response
+      mockQuestion.mockImplementation((query, callback) => callback('foo'));
+      
+      await main();
+      
+      // Verify exit was called with code 0 (graceful abort)
+      expect(mockExit).toHaveBeenCalledWith(0);
+      
+      // Verify git clone was NOT called (installation aborted)
+      expect(execa).not.toHaveBeenCalledWith('git', ['clone', expect.any(String), expect.any(String)]);
+      
+      // Verify cancellation message was displayed
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Installation cancelled.'));
+    });
+
+    it('should abort installation when user enters empty input', async () => {
+      process.argv = ['node', 'cli.js', 'test-dir'];
+      
+      // Complete mock reset for this test
+      jest.clearAllMocks();
+      execa.mockClear();
+      mockQuestion.mockClear();
+      mockClose.mockClear();
+      
+      // Set up fresh mock implementations for this test
+      execa.mockImplementation((cmd, args) => {
+        if (cmd === 'git' && args[0] === '--version') {
+          return Promise.resolve({ stdout: 'git version 2.30.0' });
+        }
+        if (cmd === 'npm' && args[0] === '--version') {
+          return Promise.resolve({ stdout: '8.0.0' });
+        }
+        // Git clone should not be called in this test
+        return Promise.resolve({ stdout: '' });
+      });
+      
+      // Mock user input with empty string
+      mockQuestion.mockImplementation((query, callback) => callback(''));
+      
+      await main();
+      
+      // Verify exit was called with code 0 (graceful abort)
+      expect(mockExit).toHaveBeenCalledWith(0);
+      
+      // Verify git clone was NOT called (installation aborted)
+      expect(execa).not.toHaveBeenCalledWith('git', ['clone', expect.any(String), expect.any(String)]);
+    });
+
+    it('should handle user input with whitespace correctly', async () => {
+      process.argv = ['node', 'cli.js', 'test-dir'];
+      
+      // Mock user input "  y  " (with whitespace)
+      mockQuestion.mockImplementation((query, callback) => callback('  y  '));
+      
+      await main();
+      
+      // Verify no exit was called (success scenario - whitespace trimmed)
+      expect(mockExit).not.toHaveBeenCalled();
+      
+      // Verify git clone was called (installation proceeded)
+      expect(execa).toHaveBeenCalledWith('git', ['clone', 'https://github.com/lacerbi/athanor.git', 'test-dir']);
     });
   });
 

@@ -12,6 +12,7 @@ import https from 'https';
 import os from 'os';
 import { pipeline } from 'stream/promises';
 import unzipper from 'unzipper';
+import readline from 'readline';
 
 const ATHANOR_REPO_URL = 'https://github.com/lacerbi/athanor.git';
 const ATHANOR_ZIP_URL = 'https://github.com/lacerbi/athanor/archive/refs/heads/main.zip';
@@ -143,6 +144,30 @@ export async function main() {
     }
 
     console.log(chalk.green(`\n📁 Target directory: ${fullTargetPath}`));
+
+    // Ask for user confirmation
+    console.log(chalk.cyan('\nThis will:'));
+    console.log(chalk.white('  • Clone the Athanor repository'));
+    console.log(chalk.white('  • Install all dependencies'));
+    console.log(chalk.white('  • Set up a complete development environment'));
+
+    const confirmed = await new Promise((resolve) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      
+      rl.question(chalk.yellow('Do you want to proceed? (y/n) '), (answer) => {
+        rl.close();
+        resolve(answer.trim().toLowerCase() === 'y');
+      });
+    });
+
+    if (!confirmed) {
+      console.log(chalk.red('\nInstallation cancelled.'));
+      process.exit(0);
+      return; // Ensure function stops in test environment where process.exit is mocked
+    }
 
     // Step 1: Get Athanor Repository (Git or ZIP fallback)
     if (prerequisites.git) {
