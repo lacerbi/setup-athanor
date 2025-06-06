@@ -1,9 +1,9 @@
 {
   "name": "setup-athanor",
   "version": "0.1.0",
-  "description": "A CLI tool to bootstrap a local, source-based instance of Athanor.",
-  "author": "Your Name",
-  "license": "MIT",
+  "description": "A CLI tool to bootstrap a local, source-based instance of Athanor - AI Workbench. Athanor is a desktop app for AI-assisted workflows, from coding to technical writing. Quickly orchestrate the relevant context to create effective prompts to paste into any LLM chat interface, and then efficiently integrate the AI response back into your project or codebase, always in control.",
+  "author": "Luigi Acerbi",
+  "license": "Apache-2.0",
   "type": "module",
   "bin": {
     "setup-athanor": "./cli.js"
@@ -25,7 +25,21 @@
     "bootstrapper",
     "scaffolder",
     "installer",
-    "development"
+    "development",
+    "electron",
+    "ai-coding",
+    "llm",
+    "developer-tool",
+    "coding-assistant",
+    "prompt-engineering",
+    "prompt-builder",
+    "code-integration",
+    "llm-chat-integration",
+    "typescript",
+    "react",
+    "local-workflow",
+    "context-management",
+    "desktop-app"
   ],
   "files": [
     "cli.js"
