@@ -2,32 +2,41 @@
 
 // AI Summary: Main CLI script for setup-athanor. Clones Athanor repo and installs dependencies.
 // Uses execa for shell commands and chalk for colored output. Entry point for npx setup-athanor.
+// Fallback to ZIP download when Git is unavailable.
 
 import { execa } from 'execa';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs/promises';
+import https from 'https';
+import os from 'os';
+import { pipeline } from 'stream/promises';
+import unzipper from 'unzipper';
 
 const ATHANOR_REPO_URL = 'https://github.com/lacerbi/athanor.git';
+const ATHANOR_ZIP_URL = 'https://github.com/lacerbi/athanor/archive/refs/heads/main.zip';
 
 export async function checkPrerequisites() {
-  const errors = [];
+  const prerequisites = {
+    git: true,
+    npm: true
+  };
   
   // Check for Git
   try {
     await execa('git', ['--version']);
   } catch (error) {
-    errors.push('Git is not installed or not in PATH');
+    prerequisites.git = false;
   }
   
   // Check for npm (Node.js)
   try {
     await execa('npm', ['--version']);
   } catch (error) {
-    errors.push('npm is not installed or not in PATH');
+    prerequisites.npm = false;
   }
   
-  return errors;
+  return prerequisites;
 }
 
 export async function directoryExists(path) {
@@ -36,6 +45,70 @@ export async function directoryExists(path) {
     return stats.isDirectory();
   } catch {
     return false;
+  }
+}
+
+async function downloadAndExtract(targetPath) {
+  // Create temporary directory
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'athanor-download-'));
+  
+  try {
+    // Download ZIP file
+    await new Promise((resolve, reject) => {
+      https.get(ATHANOR_ZIP_URL, (response) => {
+        // Handle redirects
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          https.get(response.headers.location, (redirectResponse) => {
+            if (redirectResponse.statusCode !== 200) {
+              reject(new Error(`Failed to download: HTTP ${redirectResponse.statusCode}`));
+              return;
+            }
+            
+            const extractStream = unzipper.Extract({ path: tempDir });
+            
+            extractStream.on('error', reject);
+            extractStream.on('close', resolve);
+            
+            redirectResponse.pipe(extractStream);
+          }).on('error', reject);
+          return;
+        }
+        
+        if (response.statusCode !== 200) {
+          reject(new Error(`Failed to download: HTTP ${response.statusCode}`));
+          return;
+        }
+        
+        const extractStream = unzipper.Extract({ path: tempDir });
+        
+        extractStream.on('error', reject);
+        extractStream.on('close', resolve);
+        
+        response.pipe(extractStream);
+      }).on('error', reject);
+    });
+    
+    // Find the extracted directory (should be 'athanor-main')
+    const tempContents = await fs.readdir(tempDir);
+    const extractedDir = tempContents.find(item => item.startsWith('athanor-'));
+    
+    if (!extractedDir) {
+      throw new Error('Could not find extracted Athanor directory');
+    }
+    
+    const extractedPath = path.join(tempDir, extractedDir);
+    
+    // Move the extracted directory to the target location
+    await fs.rename(extractedPath, targetPath);
+    
+  } finally {
+    // Clean up temporary directory
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch (cleanupError) {
+      // Log warning but don't fail the entire operation
+      console.warn(chalk.yellow(`Warning: Could not clean up temporary directory: ${tempDir}`));
+    }
   }
 }
 
@@ -50,12 +123,13 @@ export async function main() {
 
     // Check prerequisites
     console.log(chalk.cyan('Checking prerequisites...'));
-    const prerequisiteErrors = await checkPrerequisites();
+    const prerequisites = await checkPrerequisites();
     
-    if (prerequisiteErrors.length > 0) {
+    // npm is always required
+    if (!prerequisites.npm) {
       console.error(chalk.red.bold('\n❌ Prerequisites check failed:'));
-      prerequisiteErrors.forEach(err => console.error(chalk.red(`  • ${err}`)));
-      console.error(chalk.yellow('\nPlease install the missing dependencies and try again.'));
+      console.error(chalk.red('  • npm is not installed or not in PATH'));
+      console.error(chalk.yellow('\nPlease install Node.js and npm, then try again.'));
       process.exit(1);
     }
     
@@ -70,28 +144,56 @@ export async function main() {
 
     console.log(chalk.green(`\n📁 Target directory: ${fullTargetPath}`));
 
-    // Step 1: Clone Athanor Repository
-    console.log(chalk.cyan(`\n1. Cloning Athanor repository...`));
-    console.log(chalk.gray(`   From: ${ATHANOR_REPO_URL}`));
-    console.log(chalk.gray(`   To: ./${targetDirectoryName}`));
-    
-    const cloneSpinner = chalk.yellow('⏳ This may take a moment...');
-    console.log(cloneSpinner);
-    
-    try {
-      await execa('git', ['clone', ATHANOR_REPO_URL, targetDirectoryName]);
-      console.log(chalk.green('✓ Repository cloned successfully'));
-    } catch (error) {
-      console.error(chalk.red.bold('\n❌ Failed to clone repository'));
-      if (error.stderr && error.stderr.includes('fatal: destination path')) {
-        console.error(chalk.red('The target directory already exists.'));
-      } else if (error.stderr && error.stderr.includes('Could not resolve host')) {
-        console.error(chalk.red('Network error: Unable to reach GitHub.'));
-        console.error(chalk.yellow('Please check your internet connection.'));
-      } else {
-        console.error(chalk.red(`Git error: ${error.stderr || error.message}`));
+    // Step 1: Get Athanor Repository (Git or ZIP fallback)
+    if (prerequisites.git) {
+      console.log(chalk.cyan(`\n1. Cloning Athanor repository...`));
+      console.log(chalk.gray(`   From: ${ATHANOR_REPO_URL}`));
+      console.log(chalk.gray(`   To: ./${targetDirectoryName}`));
+      
+      const cloneSpinner = chalk.yellow('⏳ This may take a moment...');
+      console.log(cloneSpinner);
+      
+      try {
+        await execa('git', ['clone', ATHANOR_REPO_URL, targetDirectoryName]);
+        console.log(chalk.green('✓ Repository cloned successfully'));
+      } catch (error) {
+        console.error(chalk.red.bold('\n❌ Failed to clone repository'));
+        if (error.stderr && error.stderr.includes('fatal: destination path')) {
+          console.error(chalk.red('The target directory already exists.'));
+        } else if (error.stderr && error.stderr.includes('Could not resolve host')) {
+          console.error(chalk.red('Network error: Unable to reach GitHub.'));
+          console.error(chalk.yellow('Please check your internet connection.'));
+        } else {
+          console.error(chalk.red(`Git error: ${error.stderr || error.message}`));
+        }
+        process.exit(1);
       }
-      process.exit(1);
+    } else {
+      // Git not available - use ZIP download fallback
+      console.log(chalk.yellow.bold('\n⚠️  Git not found on your system.'));
+      console.log(chalk.yellow('   For better version control support, consider installing Git.'));
+      console.log(chalk.yellow('   Proceeding with ZIP download instead...\n'));
+      
+      console.log(chalk.cyan(`1. Downloading Athanor repository (ZIP)...`));
+      console.log(chalk.gray(`   From: ${ATHANOR_ZIP_URL}`));
+      console.log(chalk.gray(`   To: ./${targetDirectoryName}`));
+      
+      const downloadSpinner = chalk.yellow('⏳ Downloading and extracting...');
+      console.log(downloadSpinner);
+      
+      try {
+        await downloadAndExtract(fullTargetPath);
+        console.log(chalk.green('✓ Repository downloaded and extracted successfully'));
+      } catch (error) {
+        console.error(chalk.red.bold('\n❌ Failed to download repository'));
+        if (error.message.includes('HTTP')) {
+          console.error(chalk.red('Network error: Unable to reach GitHub.'));
+          console.error(chalk.yellow('Please check your internet connection.'));
+        } else {
+          console.error(chalk.red(`Download error: ${error.message}`));
+        }
+        process.exit(1);
+      }
     }
 
     // Step 2: Install Dependencies

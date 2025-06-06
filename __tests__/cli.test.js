@@ -1,5 +1,6 @@
 // AI Summary: Comprehensive test suite for cli.js helper functions and main CLI logic.
 // Tests checkPrerequisites, directoryExists, and main execution flow with extensive mocking.
+// Includes tests for ZIP download fallback when Git is unavailable.
 
 import { jest } from '@jest/globals';
 
@@ -10,10 +11,40 @@ jest.unstable_mockModule('execa', () => ({
 
 // Mock fs/promises with a proper stat function
 const mockStat = jest.fn();
+const mockMkdtemp = jest.fn();
+const mockReaddir = jest.fn();
+const mockRename = jest.fn();
+const mockRm = jest.fn();
 jest.unstable_mockModule('fs/promises', () => ({
   stat: mockStat,
+  mkdtemp: mockMkdtemp,
+  readdir: mockReaddir,
+  rename: mockRename,
+  rm: mockRm,
   default: {
     stat: mockStat,
+    mkdtemp: mockMkdtemp,
+    readdir: mockReaddir,
+    rename: mockRename,
+    rm: mockRm,
+  },
+}));
+
+// Mock https module
+const mockHttpsGet = jest.fn();
+jest.unstable_mockModule('https', () => ({
+  get: mockHttpsGet,
+  default: {
+    get: mockHttpsGet,
+  },
+}));
+
+// Mock unzipper module
+const mockExtract = jest.fn();
+jest.unstable_mockModule('unzipper', () => ({
+  Extract: mockExtract,
+  default: {
+    Extract: mockExtract,
   },
 }));
 
@@ -26,12 +57,19 @@ describe('CLI Tests', () => {
   let mockChdir;
   let mockConsoleLog;
   let mockConsoleError;
+  let mockConsoleWarn;
   let originalArgv;
   let originalCwd;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockStat.mockClear();
+    mockMkdtemp.mockClear();
+    mockReaddir.mockClear();
+    mockRename.mockClear();
+    mockRm.mockClear();
+    mockHttpsGet.mockClear();
+    mockExtract.mockClear();
     
     // Mock process methods
     mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {});
@@ -40,6 +78,7 @@ describe('CLI Tests', () => {
     // Mock console methods
     mockConsoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
     mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockConsoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     
     // Store original values
     originalArgv = process.argv;
@@ -52,58 +91,56 @@ describe('CLI Tests', () => {
     mockChdir.mockRestore();
     mockConsoleLog.mockRestore();
     mockConsoleError.mockRestore();
+    mockConsoleWarn.mockRestore();
     
     // Restore original argv
     process.argv = originalArgv;
   });
 
   describe('checkPrerequisites', () => {
-    it('should return empty array when both git and npm are available', async () => {
-      execa.mockResolvedValue({ stdout: 'git version 2.30.0' });
+    it('should return object with both git and npm true when both are available', async () => {
+      execa.mockResolvedValue({ stdout: 'version info' });
       
-      const errors = await checkPrerequisites();
+      const prerequisites = await checkPrerequisites();
       
-      expect(errors).toEqual([]);
+      expect(prerequisites).toEqual({ git: true, npm: true });
       expect(execa).toHaveBeenCalledWith('git', ['--version']);
       expect(execa).toHaveBeenCalledWith('npm', ['--version']);
       expect(execa).toHaveBeenCalledTimes(2);
     });
 
-    it('should return error when git is not available', async () => {
+    it('should return git false when git is not available', async () => {
       execa
         .mockRejectedValueOnce(new Error('Command not found: git'))
         .mockResolvedValueOnce({ stdout: 'npm version 8.0.0' });
       
-      const errors = await checkPrerequisites();
+      const prerequisites = await checkPrerequisites();
       
-      expect(errors).toEqual(['Git is not installed or not in PATH']);
+      expect(prerequisites).toEqual({ git: false, npm: true });
       expect(execa).toHaveBeenCalledWith('git', ['--version']);
       expect(execa).toHaveBeenCalledWith('npm', ['--version']);
     });
 
-    it('should return error when npm is not available', async () => {
+    it('should return npm false when npm is not available', async () => {
       execa
         .mockResolvedValueOnce({ stdout: 'git version 2.30.0' })
         .mockRejectedValueOnce(new Error('Command not found: npm'));
       
-      const errors = await checkPrerequisites();
+      const prerequisites = await checkPrerequisites();
       
-      expect(errors).toEqual(['npm is not installed or not in PATH']);
+      expect(prerequisites).toEqual({ git: true, npm: false });
       expect(execa).toHaveBeenCalledWith('git', ['--version']);
       expect(execa).toHaveBeenCalledWith('npm', ['--version']);
     });
 
-    it('should return both errors when neither git nor npm are available', async () => {
+    it('should return both false when neither git nor npm are available', async () => {
       execa
         .mockRejectedValueOnce(new Error('Command not found: git'))
         .mockRejectedValueOnce(new Error('Command not found: npm'));
       
-      const errors = await checkPrerequisites();
+      const prerequisites = await checkPrerequisites();
       
-      expect(errors).toEqual([
-        'Git is not installed or not in PATH',
-        'npm is not installed or not in PATH'
-      ]);
+      expect(prerequisites).toEqual({ git: false, npm: false });
     });
   });
 
@@ -251,13 +288,13 @@ describe('CLI Tests', () => {
   });
 
   describe('main function error handling', () => {
-    it('should exit with error when prerequisites check fails', async () => {
+    it('should exit with error when npm is not available', async () => {
       process.argv = ['node', 'cli.js', 'test-dir'];
       
-      // Mock prerequisite failures
+      // Mock npm not available
       execa.mockImplementation((cmd, args) => {
         if (cmd === 'git' && args[0] === '--version') {
-          return Promise.reject(new Error('Command not found: git'));
+          return Promise.resolve({ stdout: 'git version 2.30.0' });
         }
         if (cmd === 'npm' && args[0] === '--version') {
           return Promise.reject(new Error('Command not found: npm'));
@@ -272,8 +309,65 @@ describe('CLI Tests', () => {
       
       // Verify error messages were logged
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('❌ Prerequisites check failed:'));
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Git is not installed or not in PATH'));
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('npm is not installed or not in PATH'));
+    });
+
+    it('should use ZIP fallback when git is not available', async () => {
+      process.argv = ['node', 'cli.js', 'test-dir'];
+      
+      // Mock git not available, but mock successful download
+      execa.mockImplementation((cmd, args) => {
+        if (cmd === 'git' && args[0] === '--version') {
+          return Promise.reject(new Error('Command not found: git'));
+        }
+        if (cmd === 'npm' && args[0] === '--version') {
+          return Promise.resolve({ stdout: '8.0.0' });
+        }
+        if (cmd === 'npm' && args[0] === 'ci') {
+          return Promise.resolve({ stdout: 'Dependencies installed' });
+        }
+        return Promise.resolve({ stdout: '' });
+      });
+      
+      // Mock successful file system operations
+      mockMkdtemp.mockResolvedValue('/tmp/athanor-download-abc123');
+      mockReaddir.mockResolvedValue(['athanor-main']);
+      mockRename.mockResolvedValue();
+      mockRm.mockResolvedValue();
+      
+      // Mock successful HTTPS download
+      const mockResponse = {
+        statusCode: 200,
+        pipe: jest.fn((extractStream) => {
+          setTimeout(() => extractStream.emit('close'), 0);
+          return extractStream;
+        })
+      };
+      
+      const mockExtractStream = {
+        on: jest.fn((event, callback) => {
+          if (event === 'close') {
+            setTimeout(callback, 0);
+          }
+        }),
+        emit: jest.fn()
+      };
+      
+      mockHttpsGet.mockImplementation((url, callback) => {
+        setTimeout(() => callback(mockResponse), 0);
+        return { on: jest.fn() };
+      });
+      
+      mockExtract.mockReturnValue(mockExtractStream);
+      
+      await main();
+      
+      // Verify no exit was called (success scenario with fallback)
+      expect(mockExit).not.toHaveBeenCalled();
+      
+      // Verify git warning was displayed
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('⚠️  Git not found on your system'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Proceeding with ZIP download instead'));
     });
 
     it('should exit with error when target directory already exists', async () => {
@@ -501,6 +595,321 @@ describe('CLI Tests', () => {
       
       // Verify unexpected error message
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('❌ An unexpected error occurred:'));
+    });
+  });
+
+  describe('main function with git missing (ZIP fallback)', () => {
+    beforeEach(() => {
+      // Mock prerequisites: npm available, git not available
+      execa.mockImplementation((cmd, args) => {
+        if (cmd === 'git' && args[0] === '--version') {
+          return Promise.reject(new Error('Command not found: git'));
+        }
+        if (cmd === 'npm' && args[0] === '--version') {
+          return Promise.resolve({ stdout: '8.0.0' });
+        }
+        if (cmd === 'npm' && args[0] === 'ci') {
+          return Promise.resolve({ stdout: 'Dependencies installed' });
+        }
+        return Promise.resolve({ stdout: '' });
+      });
+      
+      // Mock directory doesn't exist by default
+      mockStat.mockRejectedValue(new Error('ENOENT: no such file or directory'));
+      
+      // Mock successful file system operations
+      mockMkdtemp.mockResolvedValue('/tmp/athanor-download-abc123');
+      mockReaddir.mockResolvedValue(['athanor-main']);
+      mockRename.mockResolvedValue();
+      mockRm.mockResolvedValue();
+    });
+
+    it('should successfully download and extract the repo when git is not available', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      
+      // Mock successful HTTPS download
+      const mockResponse = {
+        statusCode: 200,
+        pipe: jest.fn((extractStream) => {
+          // Simulate successful extraction
+          setTimeout(() => extractStream.emit('close'), 0);
+          return extractStream;
+        })
+      };
+      
+      const mockExtractStream = {
+        on: jest.fn((event, callback) => {
+          if (event === 'close') {
+            setTimeout(callback, 0);
+          }
+        }),
+        emit: jest.fn()
+      };
+      
+      mockHttpsGet.mockImplementation((url, callback) => {
+        setTimeout(() => callback(mockResponse), 0);
+        return { on: jest.fn() };
+      });
+      
+      mockExtract.mockReturnValue(mockExtractStream);
+      
+      await main();
+      
+      // Verify no exit was called (success scenario)
+      expect(mockExit).not.toHaveBeenCalled();
+      
+      // Verify prerequisite checks were performed
+      expect(execa).toHaveBeenCalledWith('git', ['--version']);
+      expect(execa).toHaveBeenCalledWith('npm', ['--version']);
+      
+      // Verify git warning was displayed
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('⚠️  Git not found on your system'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('For better version control support, consider installing Git'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Proceeding with ZIP download instead'));
+      
+      // Verify download progress messages
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('1. Downloading Athanor repository (ZIP)'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('https://github.com/lacerbi/athanor/archive/refs/heads/main.zip'));
+      
+      // Verify file system operations
+      expect(mockMkdtemp).toHaveBeenCalledWith(expect.stringContaining('athanor-download-'));
+      expect(mockHttpsGet).toHaveBeenCalledWith('https://github.com/lacerbi/athanor/archive/refs/heads/main.zip', expect.any(Function));
+      expect(mockExtract).toHaveBeenCalledWith({ path: '/tmp/athanor-download-abc123' });
+      expect(mockReaddir).toHaveBeenCalledWith('/tmp/athanor-download-abc123');
+      expect(mockRename).toHaveBeenCalledWith(
+        expect.stringContaining('athanor-main'),
+        expect.stringContaining('test-athanor')
+      );
+      expect(mockRm).toHaveBeenCalledWith('/tmp/athanor-download-abc123', { recursive: true, force: true });
+      
+      // Verify success messages
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Repository downloaded and extracted successfully'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been set up!'));
+      
+      // Verify npm ci was called
+      expect(execa).toHaveBeenCalledWith('npm', ['ci'], expect.objectContaining({
+        cwd: expect.stringContaining('test-athanor'),
+        stdio: ['inherit', 'pipe', 'pipe']
+      }));
+    });
+
+    it('should handle HTTP redirect during download', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      
+      // Mock redirect response
+      const mockRedirectResponse = {
+        statusCode: 302,
+        headers: { location: 'https://github.com/redirect-url/archive.zip' }
+      };
+      
+      const mockFinalResponse = {
+        statusCode: 200,
+        pipe: jest.fn((extractStream) => {
+          setTimeout(() => extractStream.emit('close'), 0);
+          return extractStream;
+        })
+      };
+      
+      const mockExtractStream = {
+        on: jest.fn((event, callback) => {
+          if (event === 'close') {
+            setTimeout(callback, 0);
+          }
+        }),
+        emit: jest.fn()
+      };
+      
+      mockHttpsGet
+        .mockImplementationOnce((url, callback) => {
+          setTimeout(() => callback(mockRedirectResponse), 0);
+          return { on: jest.fn() };
+        })
+        .mockImplementationOnce((url, callback) => {
+          setTimeout(() => callback(mockFinalResponse), 0);
+          return { on: jest.fn() };
+        });
+      
+      mockExtract.mockReturnValue(mockExtractStream);
+      
+      await main();
+      
+      // Verify no exit was called (success scenario)
+      expect(mockExit).not.toHaveBeenCalled();
+      
+      // Verify both HTTP requests were made
+      expect(mockHttpsGet).toHaveBeenCalledTimes(2);
+      expect(mockHttpsGet).toHaveBeenNthCalledWith(1, 'https://github.com/lacerbi/athanor/archive/refs/heads/main.zip', expect.any(Function));
+      expect(mockHttpsGet).toHaveBeenNthCalledWith(2, 'https://github.com/redirect-url/archive.zip', expect.any(Function));
+      
+      // Verify success
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Repository downloaded and extracted successfully'));
+    });
+
+    it('should handle download network error', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      
+      // Mock network error
+      mockHttpsGet.mockImplementation((url, callback) => {
+        return { 
+          on: jest.fn((event, errorCallback) => {
+            if (event === 'error') {
+              setTimeout(() => errorCallback(new Error('Network error: ENOTFOUND')), 0);
+            }
+          })
+        };
+      });
+      
+      await main();
+      
+      // Verify exit with error code
+      expect(mockExit).toHaveBeenCalledWith(1);
+      
+      // Verify error messages
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('❌ Failed to download repository'));
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Download error: Network error: ENOTFOUND'));
+    });
+
+    it('should handle HTTP error status codes', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      
+      // Mock HTTP error response
+      const mockResponse = {
+        statusCode: 404
+      };
+      
+      mockHttpsGet.mockImplementation((url, callback) => {
+        setTimeout(() => callback(mockResponse), 0);
+        return { on: jest.fn() };
+      });
+      
+      await main();
+      
+      // Verify exit with error code
+      expect(mockExit).toHaveBeenCalledWith(1);
+      
+      // Verify error messages
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('❌ Failed to download repository'));
+      // The actual implementation shows generic network error for HTTP errors
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Network error: Unable to reach GitHub'));
+    });
+
+    it('should handle extraction errors', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      
+      // Mock successful download but failed extraction
+      const mockResponse = {
+        statusCode: 200,
+        pipe: jest.fn((extractStream) => {
+          setTimeout(() => extractStream.emit('error', new Error('Extraction failed')), 0);
+          return extractStream;
+        })
+      };
+      
+      const mockExtractStream = {
+        on: jest.fn((event, callback) => {
+          if (event === 'error') {
+            setTimeout(() => callback(new Error('Extraction failed')), 0);
+          }
+        }),
+        emit: jest.fn()
+      };
+      
+      mockHttpsGet.mockImplementation((url, callback) => {
+        setTimeout(() => callback(mockResponse), 0);
+        return { on: jest.fn() };
+      });
+      
+      mockExtract.mockReturnValue(mockExtractStream);
+      
+      await main();
+      
+      // Verify exit with error code
+      expect(mockExit).toHaveBeenCalledWith(1);
+      
+      // Verify error messages
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('❌ Failed to download repository'));
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Download error: Extraction failed'));
+    });
+
+    it('should handle missing extracted directory', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      
+      // Mock successful download and extraction but no athanor directory found
+      const mockResponse = {
+        statusCode: 200,
+        pipe: jest.fn((extractStream) => {
+          setTimeout(() => extractStream.emit('close'), 0);
+          return extractStream;
+        })
+      };
+      
+      const mockExtractStream = {
+        on: jest.fn((event, callback) => {
+          if (event === 'close') {
+            setTimeout(callback, 0);
+          }
+        }),
+        emit: jest.fn()
+      };
+      
+      mockHttpsGet.mockImplementation((url, callback) => {
+        setTimeout(() => callback(mockResponse), 0);
+        return { on: jest.fn() };
+      });
+      
+      mockExtract.mockReturnValue(mockExtractStream);
+      mockReaddir.mockResolvedValue(['some-other-folder']); // No athanor- folder
+      
+      await main();
+      
+      // Verify exit with error code
+      expect(mockExit).toHaveBeenCalledWith(1);
+      
+      // Verify error messages
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('❌ Failed to download repository'));
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Download error: Could not find extracted Athanor directory'));
+    });
+
+    it('should warn about cleanup failure but continue', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      
+      // Mock successful download and extraction but cleanup failure
+      const mockResponse = {
+        statusCode: 200,
+        pipe: jest.fn((extractStream) => {
+          setTimeout(() => extractStream.emit('close'), 0);
+          return extractStream;
+        })
+      };
+      
+      const mockExtractStream = {
+        on: jest.fn((event, callback) => {
+          if (event === 'close') {
+            setTimeout(callback, 0);
+          }
+        }),
+        emit: jest.fn()
+      };
+      
+      mockHttpsGet.mockImplementation((url, callback) => {
+        setTimeout(() => callback(mockResponse), 0);
+        return { on: jest.fn() };
+      });
+      
+      mockExtract.mockReturnValue(mockExtractStream);
+      mockRm.mockRejectedValue(new Error('Permission denied')); // Cleanup fails
+      
+      await main();
+      
+      // Verify no exit (success scenario despite cleanup failure)
+      expect(mockExit).not.toHaveBeenCalled();
+      
+      // Verify cleanup warning was shown
+      expect(mockConsoleWarn).toHaveBeenCalledWith(expect.stringContaining('Warning: Could not clean up temporary directory'));
+      
+      // Verify success messages still shown
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Repository downloaded and extracted successfully'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been set up!'));
     });
   });
 
