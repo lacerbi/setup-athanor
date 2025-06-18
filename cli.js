@@ -13,6 +13,8 @@ import os from 'os';
 import { pipeline } from 'stream/promises';
 import unzipper from 'unzipper';
 import readline from 'readline';
+import { fileURLToPath } from 'url';
+import { realpathSync } from 'fs';
 
 const ATHANOR_REPO_URL = 'https://github.com/lacerbi/athanor.git';
 const ATHANOR_ZIP_URL = 'https://github.com/lacerbi/athanor/archive/refs/heads/main.zip';
@@ -280,8 +282,25 @@ export async function main() {
   }
 }
 
-// Run the main function only when executed directly (not when imported for testing)
-if (process.argv[1] && process.argv[1].endsWith('cli.js')) {
+// Run the main function only when this script is the entry point.
+// This is a robust way to handle direct execution (`node cli.js`),
+// execution via `npx`, and global installs, while preventing the script
+// from running automatically when imported by another module (e.g., tests).
+// It works by comparing the real file path of the executed script
+// (resolving any symlinks) with the real file path of this module.
+let isMainModule = false;
+if (process.argv[1]) {
+  try {
+    const scriptPath = realpathSync(process.argv[1]);
+    const modulePath = fileURLToPath(import.meta.url);
+    isMainModule = scriptPath === modulePath;
+  } catch {
+    // This can fail if process.argv[1] is not a valid file path (e.g., in the REPL).
+    // In that case, we don't want to run main(), so we can safely ignore the error.
+  }
+}
+
+if (isMainModule) {
   main().catch(error => {
     console.error(chalk.red.bold('\n❌ Fatal error:'));
     console.error(chalk.red(error));
