@@ -1,6 +1,8 @@
 # `setup-athanor`
 
-`setup-athanor` is a command-line interface (CLI) tool for bootstrapping a local, source-based instance of **Athanor** (https://github.com/lacerbi/athanor). It provides a simple, one-command setup for developers who want to run Athanor directly from its source code to contribute, customize, or access the latest unreleased changes.
+`setup-athanor` is the official command-line (CLI) installer for **Athanor** (https://github.com/lacerbi/athanor). It provides a simple, one-command setup that downloads the Athanor source code, installs all necessary dependencies, and compiles a ready-to-run desktop application tailored to your operating system.
+
+This approach ensures users always have the latest version while simplifying distribution, avoiding the need for platform-specific signing and registration. The tool is designed to make the source-based setup process as seamless as a traditional installer.
 
 ## Core Features
 

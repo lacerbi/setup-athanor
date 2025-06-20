@@ -8,9 +8,11 @@
 [![Node.js >=18.x](https://img.shields.io/badge/Node.js-%3E%3D18.x-brightgreen)](https://nodejs.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A simple one-command CLI tool to set up a local, source-based instance of Athanor.
+**`setup-athanor` is the official installer for **[Athanor](https://athanor.works/)**, an AI workbench for developers and creators.**
 
-This is a utility for **[Athanor](https://athanor.works/)**, an AI workbench for developers. For full details on what Athanor is and how to use it, please visit the [Athanor website](https://athanor.works/) and [its main repository](https://github.com/lacerbi/athanor).
+This simple, one-command CLI tool downloads and configures Athanor on your local machine, creating a ready-to-run application from the source code.
+
+For full details on what Athanor is and how to use it, please visit the [Athanor website](https://athanor.works/) and [its main repository](https://github.com/lacerbi/athanor).
 
 ## What is Athanor?
 
@@ -20,7 +22,7 @@ This is a utility for **[Athanor](https://athanor.works/)**, an AI workbench for
 
 ## Usage
 
-To set up a local Athanor instance from source for development or customization, run the following command in your terminal:
+To set up a local Athanor instance, run the following command in your terminal:
 
 ```bash
 npx setup-athanor [athanor-installation-folder]

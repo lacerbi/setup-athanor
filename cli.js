@@ -151,7 +151,8 @@ export async function main() {
     console.log(chalk.cyan('\nThis will:'));
     console.log(chalk.white('  • Clone the Athanor repository'));
     console.log(chalk.white('  • Install all dependencies'));
-    console.log(chalk.white('  • Set up a complete development environment'));
+    console.log(chalk.white('  • Compile a native desktop application'));
+    console.log(chalk.white('  • Set up a ready-to-use Athanor installation'));
 
     const confirmed = await new Promise((resolve) => {
       const rl = readline.createInterface({
@@ -265,12 +266,52 @@ export async function main() {
       }
     }
 
-    // Step 3: Success message and instructions
-    console.log(chalk.greenBright.bold('\n✨ Success! Athanor has been set up!\n'));
+    // Step 3: Compile Application
+    console.log(chalk.cyan(`\n3. Compiling Athanor application...`));
+    console.log(chalk.gray('   Building native desktop application'));
+    console.log(chalk.yellow('⏳ This may take several minutes...'));
+    
+    try {
+      await execa('npm', ['run', 'package'], { 
+        cwd: fullTargetPath,
+        stdio: ['inherit', 'pipe', 'pipe']
+      });
+      console.log(chalk.green('✓ Application compiled successfully'));
+    } catch (error) {
+      console.error(chalk.red.bold('\n❌ Failed to compile application'));
+      console.error(chalk.red(`Build error: ${error.stderr || error.message}`));
+      console.error(chalk.yellow('\nTo try again manually:'));
+      console.error(chalk.white(`  cd ${targetDirectoryName}`));
+      console.error(chalk.white(`  npm run package`));
+      process.exit(1);
+    }
+
+    // Step 4: Success message and platform-specific instructions
+    console.log(chalk.greenBright.bold('\n✨ Success! Athanor has been compiled and is ready to use!\n'));
     console.log(chalk.white('📍 Location: ') + chalk.yellow(fullTargetPath));
-    console.log(chalk.white('\nTo start Athanor, run:'));
-    console.log(chalk.bgGray.white(`  cd ${targetDirectoryName}  `));
-    console.log(chalk.bgGray.white(`  npm start           `));
+    
+    // Provide platform-specific instructions
+    const platform = os.platform();
+    console.log(chalk.white('\nYour compiled Athanor application is ready:'));
+    
+    switch (platform) {
+      case 'darwin': // macOS
+        console.log(chalk.bgGray.white(`  Open: ${targetDirectoryName}/out/Athanor-darwin-*/Athanor.app  `));
+        console.log('');
+        console.log(chalk.yellow.bold('📋 macOS Users - Important:'));
+        console.log(chalk.yellow('   If macOS prevents opening (Gatekeeper), right-click the app'));
+        console.log(chalk.yellow('   and select "Open" to bypass the security warning.'));
+        break;
+        
+      case 'win32': // Windows
+        console.log(chalk.bgGray.white(`  Run: ${targetDirectoryName}\\out\\Athanor-win32-*\\Athanor.exe  `));
+        break;
+        
+      default: // Linux and others
+        console.log(chalk.bgGray.white(`  Run: ${targetDirectoryName}/out/Athanor-linux-*/Athanor  `));
+        break;
+    }
+    
     console.log('');
 
   } catch (error) {

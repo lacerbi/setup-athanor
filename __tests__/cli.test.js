@@ -1,6 +1,6 @@
 // AI Summary: Comprehensive test suite for cli.js helper functions and main CLI logic.
 // Tests checkPrerequisites, directoryExists, and main execution flow with extensive mocking.
-// Includes tests for ZIP download fallback when Git is unavailable.
+// Includes tests for ZIP download fallback when Git is unavailable, compilation step, and platform-aware instructions.
 
 import { jest } from '@jest/globals';
 
@@ -61,6 +61,17 @@ jest.unstable_mockModule('readline', () => ({
       question: mockQuestion,
       close: mockClose,
     }),
+  },
+}));
+
+// Mock os module
+const mockPlatform = jest.fn();
+jest.unstable_mockModule('os', () => ({
+  platform: mockPlatform,
+  tmpdir: jest.fn().mockReturnValue('/tmp'),
+  default: {
+    platform: mockPlatform,
+    tmpdir: jest.fn().mockReturnValue('/tmp'),
   },
 }));
 
@@ -223,11 +234,17 @@ describe('CLI Tests', () => {
         if (cmd === 'npm' && args[0] === 'ci') {
           return Promise.resolve({ stdout: 'Dependencies installed' });
         }
+        if (cmd === 'npm' && args.length === 2 && args[0] === 'run' && args[1] === 'package') {
+          return Promise.resolve({ stdout: 'Application compiled' });
+        }
         return Promise.resolve({ stdout: '' });
       });
       
       // Mock directory doesn't exist by default
       mockStat.mockRejectedValue(new Error('ENOENT: no such file or directory'));
+      
+      // Mock platform as Linux by default
+      mockPlatform.mockReturnValue('linux');
     });
 
     it('should successfully setup Athanor with custom directory name', async () => {
@@ -255,11 +272,16 @@ describe('CLI Tests', () => {
         stdio: ['inherit', 'pipe', 'pipe']
       }));
       
+      // Verify npm run package was called
+      expect(execa).toHaveBeenCalledWith('npm', ['run', 'package'], expect.objectContaining({
+        cwd: expect.stringContaining('my-custom-athanor'),
+        stdio: ['inherit', 'pipe', 'pipe']
+      }));
+      
       // Verify success messages were logged
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('🚀 Athanor Setup Bootstrapper'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been set up!'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('cd my-custom-athanor'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('npm start'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been compiled and is ready to use!'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('my-custom-athanor/out/Athanor-linux-'));
     });
 
     it('should successfully setup Athanor with default directory name', async () => {
@@ -287,10 +309,15 @@ describe('CLI Tests', () => {
         stdio: ['inherit', 'pipe', 'pipe']
       }));
       
+      // Verify npm run package was called
+      expect(execa).toHaveBeenCalledWith('npm', ['run', 'package'], expect.objectContaining({
+        cwd: expect.stringContaining('athanor'),
+        stdio: ['inherit', 'pipe', 'pipe']
+      }));
+      
       // Verify success messages were logged with default directory name
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been set up!'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('cd athanor'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('npm start'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been compiled and is ready to use!'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('athanor/out/Athanor-linux-'));
     });
 
     it('should display progress messages during execution', async () => {
@@ -305,6 +332,8 @@ describe('CLI Tests', () => {
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Repository cloned successfully'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('2. Installing dependencies...'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Dependencies installed successfully'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('3. Compiling Athanor application...'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Application compiled successfully'));
     });
   });
 
@@ -346,6 +375,9 @@ describe('CLI Tests', () => {
         }
         if (cmd === 'npm' && args[0] === 'ci') {
           return Promise.resolve({ stdout: 'Dependencies installed' });
+        }
+        if (cmd === 'npm' && args.length === 2 && args[0] === 'run' && args[1] === 'package') {
+          return Promise.resolve({ stdout: 'Application compiled' });
         }
         return Promise.resolve({ stdout: '' });
       });
@@ -504,6 +536,9 @@ describe('CLI Tests', () => {
         if (cmd === 'npm' && args[0] === 'install') {
           return Promise.resolve({ stdout: 'Dependencies installed' });
         }
+        if (cmd === 'npm' && args.length === 2 && args[0] === 'run' && args[1] === 'package') {
+          return Promise.resolve({ stdout: 'Application compiled' });
+        }
         return Promise.resolve({ stdout: '' });
       });
       
@@ -598,6 +633,46 @@ describe('CLI Tests', () => {
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('You may need to fix npm permissions'));
     });
 
+    it('should exit with error when npm run package fails', async () => {
+      process.argv = ['node', 'cli.js', 'test-dir'];
+      
+      // Mock prerequisites success, directory doesn't exist, git clone success, npm ci success
+      execa.mockImplementation((cmd, args) => {
+        if (cmd === 'git' && args[0] === '--version') {
+          return Promise.resolve({ stdout: 'git version 2.30.0' });
+        }
+        if (cmd === 'npm' && args[0] === '--version') {
+          return Promise.resolve({ stdout: '8.0.0' });
+        }
+        if (cmd === 'git' && args[0] === 'clone') {
+          return Promise.resolve({ stdout: 'Cloning...' });
+        }
+        if (cmd === 'npm' && args[0] === 'ci') {
+          return Promise.resolve({ stdout: 'Dependencies installed' });
+        }
+        if (cmd === 'npm' && args.length === 2 && args[0] === 'run' && args[1] === 'package') {
+          const error = new Error('Build failed');
+          error.stderr = 'electron-builder error: Unable to build application';
+          return Promise.reject(error);
+        }
+        return Promise.resolve({ stdout: '' });
+      });
+      
+      mockStat.mockRejectedValue(new Error('ENOENT'));
+      
+      await main();
+      
+      // Verify exit with error code
+      expect(mockExit).toHaveBeenCalledWith(1);
+      
+      // Verify error messages
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('❌ Failed to compile application'));
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Build error: electron-builder error: Unable to build application'));
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('To try again manually:'));
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('cd test-dir'));
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('npm run package'));
+    });
+
     it('should handle unexpected errors with general error message', async () => {
       process.argv = ['node', 'cli.js', 'test-dir'];
       
@@ -634,6 +709,9 @@ describe('CLI Tests', () => {
         }
         if (cmd === 'npm' && args[0] === 'ci') {
           return Promise.resolve({ stdout: 'Dependencies installed' });
+        }
+        if (cmd === 'npm' && args.length === 2 && args[0] === 'run' && args[1] === 'package') {
+          return Promise.resolve({ stdout: 'Application compiled' });
         }
         return Promise.resolve({ stdout: '' });
       });
@@ -800,6 +878,76 @@ describe('CLI Tests', () => {
     });
   });
 
+  describe('platform-specific instructions', () => {
+    beforeEach(() => {
+      // Mock successful setup flow
+      execa.mockImplementation((cmd, args) => {
+        if (cmd === 'git' && args[0] === '--version') {
+          return Promise.resolve({ stdout: 'git version 2.30.0' });
+        }
+        if (cmd === 'npm' && args[0] === '--version') {
+          return Promise.resolve({ stdout: '8.0.0' });
+        }
+        if (cmd === 'git' && args[0] === 'clone') {
+          return Promise.resolve({ stdout: 'Cloning into...' });
+        }
+        if (cmd === 'npm' && args[0] === 'ci') {
+          return Promise.resolve({ stdout: 'Dependencies installed' });
+        }
+        if (cmd === 'npm' && args.length === 2 && args[0] === 'run' && args[1] === 'package') {
+          return Promise.resolve({ stdout: 'Application compiled' });
+        }
+        return Promise.resolve({ stdout: '' });
+      });
+      
+      mockStat.mockRejectedValue(new Error('ENOENT: no such file or directory'));
+      mockQuestion.mockImplementation((query, callback) => callback('y'));
+    });
+
+    it('should provide macOS-specific instructions when platform is darwin', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      mockPlatform.mockReturnValue('darwin');
+      
+      await main();
+      
+      expect(mockExit).not.toHaveBeenCalled();
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('test-athanor/out/Athanor-darwin-*/Athanor.app'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('📋 macOS Users - Important:'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('right-click the app'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('select "Open" to bypass'));
+    });
+
+    it('should provide Windows-specific instructions when platform is win32', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      mockPlatform.mockReturnValue('win32');
+      
+      await main();
+      
+      expect(mockExit).not.toHaveBeenCalled();
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('test-athanor\\out\\Athanor-win32-*\\Athanor.exe'));
+    });
+
+    it('should provide Linux-specific instructions when platform is linux', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      mockPlatform.mockReturnValue('linux');
+      
+      await main();
+      
+      expect(mockExit).not.toHaveBeenCalled();
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('test-athanor/out/Athanor-linux-*/Athanor'));
+    });
+
+    it('should provide generic instructions for unknown platforms', async () => {
+      process.argv = ['node', 'cli.js', 'test-athanor'];
+      mockPlatform.mockReturnValue('freebsd');
+      
+      await main();
+      
+      expect(mockExit).not.toHaveBeenCalled();
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('test-athanor/out/Athanor-linux-*/Athanor'));
+    });
+  });
+
   describe('main function with git missing (ZIP fallback)', () => {
     beforeEach(() => {
       // Mock prerequisites: npm available, git not available
@@ -812,6 +960,9 @@ describe('CLI Tests', () => {
         }
         if (cmd === 'npm' && args[0] === 'ci') {
           return Promise.resolve({ stdout: 'Dependencies installed' });
+        }
+        if (cmd === 'npm' && args.length === 2 && args[0] === 'run' && args[1] === 'package') {
+          return Promise.resolve({ stdout: 'Application compiled' });
         }
         return Promise.resolve({ stdout: '' });
       });
@@ -886,10 +1037,16 @@ describe('CLI Tests', () => {
       
       // Verify success messages
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Repository downloaded and extracted successfully'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been set up!'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been compiled and is ready to use!'));
       
       // Verify npm ci was called
       expect(execa).toHaveBeenCalledWith('npm', ['ci'], expect.objectContaining({
+        cwd: expect.stringContaining('test-athanor'),
+        stdio: ['inherit', 'pipe', 'pipe']
+      }));
+      
+      // Verify npm run package was called
+      expect(execa).toHaveBeenCalledWith('npm', ['run', 'package'], expect.objectContaining({
         cwd: expect.stringContaining('test-athanor'),
         stdio: ['inherit', 'pipe', 'pipe']
       }));
@@ -1111,7 +1268,7 @@ describe('CLI Tests', () => {
       
       // Verify success messages still shown
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Repository downloaded and extracted successfully'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been set up!'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✨ Success! Athanor has been compiled and is ready to use!'));
     });
   });
 

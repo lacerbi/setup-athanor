@@ -1,0 +1,402 @@
+{
+  "dependencyGraph": [
+    [
+      "__tests__/cli.test.js",
+      [
+        "@jest/globals",
+        "execa",
+        "../cli.js"
+      ]
+    ],
+    [
+      ".github/workflows/ci.yml",
+      []
+    ],
+    [
+      "cli.js",
+      [
+        "execa",
+        "chalk",
+        "path",
+        "fs/promises",
+        "https",
+        "os",
+        "stream/promises",
+        "unzipper",
+        "readline",
+        "url",
+        "fs",
+        "git",
+        "athanor-download-",
+        "\\n🚀 Athanor Setup Bootstrapper\\n",
+        "\\n❌ Fatal error:"
+      ]
+    ],
+    [
+      "LICENSE",
+      []
+    ],
+    [
+      "package.json",
+      []
+    ],
+    [
+      "PROJECT.md",
+      []
+    ],
+    [
+      "README.md",
+      []
+    ]
+  ],
+  "dependentsGraph": [
+    [
+      "__tests__/cli.test.js",
+      []
+    ],
+    [
+      ".github/workflows/ci.yml",
+      []
+    ],
+    [
+      "cli.js",
+      [
+        "__tests__/cli.test.js"
+      ]
+    ],
+    [
+      "LICENSE",
+      []
+    ],
+    [
+      "package.json",
+      []
+    ],
+    [
+      "PROJECT.md",
+      []
+    ],
+    [
+      "README.md",
+      []
+    ]
+  ],
+  "fileMentions": [
+    [
+      "__tests__/cli.test.js",
+      [
+        ".github/workflows/ci.yml",
+        "cli.js",
+        "package.json"
+      ]
+    ],
+    [
+      ".github/workflows/ci.yml",
+      [
+        "package.json"
+      ]
+    ],
+    [
+      "cli.js",
+      [
+        ".github/workflows/ci.yml",
+        "package.json"
+      ]
+    ],
+    [
+      "package.json",
+      [
+        "cli.js"
+      ]
+    ],
+    [
+      "PROJECT.md",
+      [
+        ".github/workflows/ci.yml",
+        "package.json"
+      ]
+    ],
+    [
+      "README.md",
+      [
+        ".github/workflows/ci.yml",
+        "LICENSE",
+        "package.json"
+      ]
+    ]
+  ],
+  "hubFiles": [],
+  "sharedCommitGraph": [
+    [
+      "cli.js",
+      [
+        {
+          "file": "package-lock.json",
+          "count": 4
+        },
+        {
+          "file": "__tests__/cli.test.js",
+          "count": 3
+        },
+        {
+          "file": "package.json",
+          "count": 3
+        },
+        {
+          "file": ".github/workflows/ci.yml",
+          "count": 1
+        },
+        {
+          "file": ".athignore",
+          "count": 1
+        },
+        {
+          "file": ".gitignore",
+          "count": 1
+        },
+        {
+          "file": "PROJECT.md",
+          "count": 1
+        }
+      ]
+    ],
+    [
+      "package-lock.json",
+      [
+        {
+          "file": "cli.js",
+          "count": 4
+        },
+        {
+          "file": "package.json",
+          "count": 4
+        },
+        {
+          "file": "__tests__/cli.test.js",
+          "count": 2
+        },
+        {
+          "file": ".github/workflows/ci.yml",
+          "count": 1
+        },
+        {
+          "file": ".athignore",
+          "count": 1
+        },
+        {
+          "file": ".gitignore",
+          "count": 1
+        },
+        {
+          "file": "PROJECT.md",
+          "count": 1
+        }
+      ]
+    ],
+    [
+      "package.json",
+      [
+        {
+          "file": "package-lock.json",
+          "count": 4
+        },
+        {
+          "file": "LICENSE",
+          "count": 1
+        },
+        {
+          "file": "PROJECT.md",
+          "count": 2
+        },
+        {
+          "file": "README.md",
+          "count": 1
+        },
+        {
+          "file": "__tests__/cli.test.js",
+          "count": 2
+        },
+        {
+          "file": "cli.js",
+          "count": 3
+        },
+        {
+          "file": ".github/workflows/ci.yml",
+          "count": 1
+        },
+        {
+          "file": ".athignore",
+          "count": 1
+        },
+        {
+          "file": ".gitignore",
+          "count": 1
+        }
+      ]
+    ],
+    [
+      "__tests__/cli.test.js",
+      [
+        {
+          "file": "cli.js",
+          "count": 3
+        },
+        {
+          "file": "package-lock.json",
+          "count": 2
+        },
+        {
+          "file": "package.json",
+          "count": 2
+        },
+        {
+          "file": ".github/workflows/ci.yml",
+          "count": 1
+        }
+      ]
+    ],
+    [
+      "LICENSE",
+      [
+        {
+          "file": "PROJECT.md",
+          "count": 1
+        },
+        {
+          "file": "README.md",
+          "count": 1
+        },
+        {
+          "file": "package.json",
+          "count": 1
+        }
+      ]
+    ],
+    [
+      "PROJECT.md",
+      [
+        {
+          "file": "LICENSE",
+          "count": 1
+        },
+        {
+          "file": "README.md",
+          "count": 1
+        },
+        {
+          "file": "package.json",
+          "count": 2
+        },
+        {
+          "file": ".athignore",
+          "count": 1
+        },
+        {
+          "file": ".gitignore",
+          "count": 1
+        },
+        {
+          "file": "cli.js",
+          "count": 1
+        },
+        {
+          "file": "package-lock.json",
+          "count": 1
+        }
+      ]
+    ],
+    [
+      "README.md",
+      [
+        {
+          "file": "LICENSE",
+          "count": 1
+        },
+        {
+          "file": "PROJECT.md",
+          "count": 1
+        },
+        {
+          "file": "package.json",
+          "count": 1
+        }
+      ]
+    ],
+    [
+      ".github/workflows/ci.yml",
+      [
+        {
+          "file": "__tests__/cli.test.js",
+          "count": 1
+        },
+        {
+          "file": "cli.js",
+          "count": 1
+        },
+        {
+          "file": "package-lock.json",
+          "count": 1
+        },
+        {
+          "file": "package.json",
+          "count": 1
+        }
+      ]
+    ],
+    [
+      ".athignore",
+      [
+        {
+          "file": ".gitignore",
+          "count": 1
+        },
+        {
+          "file": "PROJECT.md",
+          "count": 1
+        },
+        {
+          "file": "cli.js",
+          "count": 1
+        },
+        {
+          "file": "package-lock.json",
+          "count": 1
+        },
+        {
+          "file": "package.json",
+          "count": 1
+        }
+      ]
+    ],
+    [
+      ".gitignore",
+      [
+        {
+          "file": ".athignore",
+          "count": 1
+        },
+        {
+          "file": "PROJECT.md",
+          "count": 1
+        },
+        {
+          "file": "cli.js",
+          "count": 1
+        },
+        {
+          "file": "package-lock.json",
+          "count": 1
+        },
+        {
+          "file": "package.json",
+          "count": 1
+        }
+      ]
+    ]
+  ],
+  "recentlyCommittedFiles": [
+    "package.json",
+    "cli.js",
+    "package-lock.json"
+  ]
+}
