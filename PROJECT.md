@@ -6,10 +6,11 @@ This approach ensures users always have the latest version while simplifying dis
 
 ## Core Features
 
-- **One-Command Setup:** Get a complete Athanor source-code instance running with a single command.
+- **One-Command Setup:** Get a complete Athanor desktop application running with a single command.
 - **Git Integration:** Clones the Athanor repository using `git` for full version control history.
 - **Automatic Fallback:** If `Git` is not installed, it automatically downloads and extracts the latest version of the repository as a ZIP file.
 - **Robust Dependency Installation:** Uses `npm ci` for a clean, reproducible build. Automatically falls back to `npm install` if `package-lock.json` is missing or invalid.
+- **Automatic Compilation:** Compiles the Athanor source code into a native desktop application, ready for immediate use.
 - **Prerequisite Checks:** Verifies that `Node.js` and `npm` are available before starting.
 - **Clear Feedback:** Provides colorful, easy-to-understand progress messages and instructions.
 
@@ -51,6 +52,9 @@ The tool is a simple Node.js script that automates the following steps:
     - Changes into the new project directory.
     - Executes `npm ci` for a precise dependency installation.
     - If `npm ci` fails, it attempts a recovery by running `npm install`.
-6.  **Provides Instructions:** Displays a success message with clear commands on how to launch Athanor.
+6.  **Compiles Application:**
+    - Executes `npm run package` to build a native desktop application.
+    - Creates platform-specific executables in the `out` directory.
+7.  **Provides Instructions:** Displays a success message with platform-specific guidance on how to launch the compiled Athanor application.
 
 The project uses `execa` for robust execution of external commands, `chalk` for styling console output, and `unzipper` for the ZIP extraction fallback.

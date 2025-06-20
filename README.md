@@ -10,7 +10,7 @@
 
 **`setup-athanor` is the official installer for **[Athanor](https://athanor.works/)**, an AI workbench for developers and creators.**
 
-This simple, one-command CLI tool downloads and configures Athanor on your local machine, creating a ready-to-run application from the source code.
+This simple, one-command CLI tool downloads, compiles, and sets up Athanor on your local machine, creating a native desktop application ready for immediate use.
 
 For full details on what Athanor is and how to use it, please visit the [Athanor website](https://athanor.works/) and [its main repository](https://github.com/lacerbi/athanor).
 
@@ -34,7 +34,8 @@ This command will:
 
 1.  Clone the Athanor repository (or download a ZIP if Git is not installed).
 2.  Install all necessary dependencies.
-3.  Provide you with a ready-to-use local instance.
+3.  Compile a native desktop application for your system.
+4.  Provide you with a ready-to-use Athanor installation.
 
 ## Prerequisites
 
@@ -43,12 +44,27 @@ This command will:
 
 ## How to Run Athanor After Setup
 
-Once the setup is complete, you can launch Athanor by running:
+Once the setup is complete, you'll find your compiled Athanor application in the `out` subfolder of your installation directory. The exact location depends on your operating system:
 
-```bash
-cd [athanor-installation-folder]
-npm start
-```
+- **macOS**: `[athanor-installation-folder]/out/Athanor-darwin-*/Athanor.app`
+- **Windows**: `[athanor-installation-folder]\out\Athanor-win32-*\Athanor.exe`
+- **Linux**: `[athanor-installation-folder]/out/Athanor-linux-*/Athanor`
+
+Simply double-click the application to launch Athanor.
+
+<details>
+<summary><strong>📋 macOS Users - Important Security Note</strong></summary>
+
+When you first open Athanor on macOS, you may encounter a security warning from Gatekeeper stating that the app "cannot be opened because it is from an unidentified developer."
+
+**To bypass this one-time warning:**
+1. Right-click (or Control-click) on the Athanor.app file
+2. Select "Open" from the context menu
+3. Click "Open" in the security dialog that appears
+
+After this initial step, you can launch Athanor normally by double-clicking.
+
+</details>
 
 ## About This Repository
 
