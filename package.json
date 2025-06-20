@@ -1,6 +1,6 @@
 {
   "name": "setup-athanor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A CLI tool to bootstrap a local, source-based instance of Athanor - AI Workbench. Athanor is a desktop app for AI-assisted workflows, from coding to technical writing. Quickly orchestrate the relevant context to create effective prompts to paste into any LLM chat interface, and then efficiently integrate the AI response back into your project or codebase, always in control.",
   "author": "Luigi Acerbi",
   "license": "Apache-2.0",
